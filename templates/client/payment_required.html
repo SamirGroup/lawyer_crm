@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Payment Required{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center;padding:3rem;">
+  <h2>🔒 Payment Required</h2>
+  <p>You need to complete the 10% payment to access your cabinet.</p>
+  {% if invoice %}
+  <a href="/payment/{{ req.pk }}/" class="btn btn-primary">Go to Payment</a>
+  {% else %}
+  <p>Admin is preparing your invoice. Please check back soon.</p>
+  <a href="/status/?id={{ req.pk }}" class="btn btn-secondary">Check Status</a>
+  {% endif %}
+</div>
+{% endblock %}

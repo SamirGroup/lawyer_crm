@@ -1,0 +1,346 @@
+{% extends "admin_panel/base.html" %}
+{% block title %}Request #{{ req.pk }} — Admin{% endblock %}
+{% block nav_req %}active{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+  <div>
+    <h1 style="margin-bottom:.25rem;">Request #{{ req.pk }}</h1>
+    <p style="color:var(--muted);font-size:.875rem;">{{ req.customer_name }} · {{ req.date|date:"d.m.Y H:i" }}</p>
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
+    <a href="/admin-panel/requests/" class="btn btn-secondary btn-sm">← Back</a>
+  </div>
+</div>
+
+<div id="action-msg" class="alert hidden"></div>
+
+<div class="detail-grid">
+  <!-- Left: Client info -->
+  <div>
+    <div class="card" style="margin-bottom:1rem;">
+      <h3 style="margin-bottom:1rem;">Client Information</h3>
+      <table style="width:100%;border-collapse:collapse;">
+        {% for label, value in forloop_data %}{% endfor %}
+      </table>
+      <div style="display:flex;flex-direction:column;gap:.5rem;">
+        <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.875rem;">
+          <span style="color:var(--muted);">Name</span><strong>{{ req.customer_name }}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.875rem;">
+          <span style="color:var(--muted);">Phone</span><a href="tel:{{ req.phone }}">{{ req.phone }}</a>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.875rem;">
+          <span style="color:var(--muted);">Source</span>{{ req.get_source_display }}
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.875rem;">
+          <span style="color:var(--muted);">Date</span>{{ req.date|date:"d.m.Y H:i" }}
+        </div>
+        {% if req.file %}
+        <div style="padding:.5rem 0;">
+          <a href="{{ req.file.url }}" target="_blank" class="btn btn-secondary btn-sm">📎 Download Document</a>
+        </div>
+        {% endif %}
+      </div>
+      <div style="margin-top:1rem;">
+        <div style="font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.4rem;">CLIENT MESSAGE</div>
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.875rem;line-height:1.7;white-space:pre-wrap;">{{ req.text }}</div>
+      </div>
+    </div>
+
+    <!-- Invoice info -->
+    {% if invoice %}
+    <div class="card" style="margin-bottom:1rem;">
+      <h3 style="margin-bottom:1rem;">💳 Invoice</h3>
+      <div style="display:flex;flex-direction:column;gap:.4rem;font-size:.875rem;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Number</span><code>{{ invoice.invoice_number }}</code></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Amount (10%)</span><strong>{{ invoice.ten_percent_amount|floatformat:0 }} UZS</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Status</span>
+          {% if invoice.paid %}<span class="badge badge-paid">✅ Paid — {{ invoice.paid_date|date:"d.m.Y" }}</span>
+          {% else %}<span class="badge badge-reviewing">⏳ Pending</span>{% endif %}
+        </div>
+        {% if invoice.payment_method %}<div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Method</span>{{ invoice.payment_method }}</div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Chat Monitor -->
+    {% if case %}
+    <div class="card" style="margin-bottom:1rem;">
+      <h3 style="margin-bottom:1rem;">💬 Chat Monitor</h3>
+      <div id="admin-chat-box" style="height:280px;overflow-y:auto;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:1rem;display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem;"></div>
+      <!-- Admin can send a message into the chat -->
+      <form id="admin-chat-form" style="display:flex;gap:.5rem;">
+        <input type="text" id="admin-msg-input" placeholder="Send a message as admin..." style="flex:1;padding:.55rem .75rem;border:1.5px solid var(--border);border-radius:var(--radius);font-size:.875rem;">
+        <button type="submit" class="btn btn-primary btn-sm">Send</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- Case & Meetings -->
+    {% if case %}
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">📅 Schedule Meeting</h3>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="meet-title" placeholder="e.g. Initial Consultation" value="Initial Consultation">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div class="form-group">
+          <label>Type</label>
+          <select id="meet-type">
+            <option value="online">Online</option>
+            <option value="office">In Office</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Duration (min)</label>
+          <input type="number" id="meet-duration" value="60" min="15" step="15">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Date & Time</label>
+        <input type="datetime-local" id="meet-datetime">
+      </div>
+      <div class="form-group">
+        <label>Location / Link</label>
+        <input type="text" id="meet-location" placeholder="Zoom link or office address">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="meet-notes" rows="2" placeholder="Additional notes..."></textarea>
+      </div>
+      <button onclick="createMeeting()" class="btn btn-primary">📅 Schedule Meeting</button>
+
+      <div style="margin-top:1.25rem;" id="meetings-admin-list">
+        <div style="font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.5rem;">EXISTING MEETINGS</div>
+        <div id="meetings-items"><p style="color:var(--muted);font-size:.85rem;">Loading...</p></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Admin actions -->
+  <div>
+    <div class="card" style="margin-bottom:1rem;">
+      <h3 style="margin-bottom:1rem;">⚙️ Admin Actions</h3>
+
+      <div class="form-group">
+        <label>Direction</label>
+        <select id="direction">
+          <option value="">— Select —</option>
+          {% for val, label in directions %}<option value="{{ val }}" {% if req.direction == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Total Amount (UZS)</label>
+        <input type="number" id="total-amount" value="{{ req.total_amount|default:'' }}" placeholder="e.g. 500000">
+      </div>
+      <div class="form-group">
+        <label>Admin Comment</label>
+        <textarea id="admin-comment" rows="3" placeholder="Internal notes...">{{ req.admin_comment }}</textarea>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <button onclick="saveRequest()" class="btn btn-primary">💾 Save</button>
+        {% if not invoice %}
+        <button onclick="createInvoice()" class="btn btn-secondary">📄 Create Invoice</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem;">
+      <h3 style="margin-bottom:1rem;">👨⚖️ Assign Lawyer</h3>
+      {% if case %}
+      <div class="alert alert-success" style="margin-bottom:1rem;">
+        Currently: <strong>{{ case.lawyer.user.get_full_name }}</strong>
+        <span class="badge badge-{{ case.status }}" style="margin-left:.5rem;">{{ case.get_status_display }}</span>
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <select id="lawyer-select">
+          <option value="">— Select Lawyer —</option>
+          {% for l in lawyers %}<option value="{{ l.pk }}" {% if case and case.lawyer_id == l.pk %}selected{% endif %}>{{ l.user.get_full_name }} ({{ l.get_direction_display }})</option>{% endfor %}
+        </select>
+      </div>
+      <button onclick="assignLawyer()" class="btn btn-primary">Assign Lawyer</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">🔄 Change Status</h3>
+      <div class="form-group">
+        <select id="req-status">
+          {% for val, label in statuses %}<option value="{{ val }}" {% if req.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <button onclick="changeStatus()" class="btn btn-primary">Update Status</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const reqId = {{ req.pk }};
+const caseId = {{ case.pk|default:"null" }};
+
+async function saveRequest() {
+  const res = await fetch(`/admin-panel/requests/${reqId}/update/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+    body:JSON.stringify({
+      direction: document.getElementById('direction').value,
+      total_amount: document.getElementById('total-amount').value || null,
+      admin_comment: document.getElementById('admin-comment').value,
+    })
+  });
+  showMsg(res.ok ? '✅ Saved' : '❌ Error', res.ok);
+}
+
+async function changeStatus() {
+  const res = await fetch(`/admin-panel/requests/${reqId}/update/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+    body:JSON.stringify({status: document.getElementById('req-status').value})
+  });
+  showMsg(res.ok ? '✅ Status updated' : '❌ Error', res.ok);
+}
+
+async function createInvoice() {
+  const res = await fetch(`/admin-panel/requests/${reqId}/invoice/`, {
+    method:'POST', headers:{'X-CSRFToken':getCookie('csrftoken')}
+  });
+  const d = await res.json();
+  if (res.ok) { showMsg(`✅ Invoice created: ${d.invoice_number}`, true); setTimeout(() => location.reload(), 1500); }
+  else showMsg(d.error || '❌ Error', false);
+}
+
+async function assignLawyer() {
+  const lawyerId = document.getElementById('lawyer-select').value;
+  if (!lawyerId) return alert('Select a lawyer first');
+  const res = await fetch(`/admin-panel/requests/${reqId}/assign/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+    body:JSON.stringify({lawyer_id: lawyerId})
+  });
+  showMsg(res.ok ? '✅ Lawyer assigned' : '❌ Error', res.ok);
+  if (res.ok) setTimeout(() => location.reload(), 1200);
+}
+
+async function createMeeting() {
+  const dt = document.getElementById('meet-datetime').value;
+  if (!dt) return alert('Select date and time');
+  const res = await fetch(`/api/chat/${caseId}/meetings/create/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+    body:JSON.stringify({
+      title: document.getElementById('meet-title').value,
+      meeting_type: document.getElementById('meet-type').value,
+      scheduled_at: new Date(dt).toISOString(),
+      duration_minutes: parseInt(document.getElementById('meet-duration').value),
+      location: document.getElementById('meet-location').value,
+      notes: document.getElementById('meet-notes').value,
+    })
+  });
+  if (res.ok) { showMsg('✅ Meeting scheduled', true); loadMeetings(); }
+  else showMsg('❌ Error scheduling meeting', false);
+}
+
+async function loadMeetings() {
+  if (!caseId) return;
+  const res = await fetch(`/api/chat/${caseId}/meetings/`);
+  const d = await res.json();
+  const el = document.getElementById('meetings-items');
+  if (!d.meetings.length) { el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;">No meetings yet.</p>'; return; }
+  const statusOpts = ['pending','confirmed','cancelled','done'];
+  el.innerHTML = d.meetings.map(m => {
+    const dt = new Date(m.scheduled_at);
+    return `<div style="padding:.6rem 0;border-bottom:1px solid var(--border);font-size:.85rem;">
+      <strong>${m.title}</strong>
+      <div style="color:var(--muted);font-size:.78rem;">📅 ${dt.toLocaleDateString()} ${dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${m.duration_minutes}min</div>
+      ${m.location ? `<div style="color:var(--muted);font-size:.78rem;">📍 ${m.location}</div>` : ''}
+      <div style="display:flex;gap:.4rem;margin-top:.35rem;align-items:center;">
+        <select onchange="updateMeetingStatus(${m.id}, this.value)" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;">
+          ${statusOpts.map(s => `<option value="${s}" ${m.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function updateMeetingStatus(id, status) {
+  await fetch(`/api/chat/meeting/${id}/update/`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+    body:JSON.stringify({status})
+  });
+}
+
+function showMsg(text, ok) {
+  const el = document.getElementById('action-msg');
+  el.textContent = text;
+  el.className = `alert ${ok ? 'alert-success' : 'alert-error'}`;
+  setTimeout(() => el.className = 'alert hidden', 4000);
+}
+
+function getCookie(name) {
+  return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'='))?.split('=')[1]||'';
+}
+
+// Set default datetime to tomorrow
+const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(10,0,0,0);
+document.getElementById('meet-datetime').value = tomorrow.toISOString().slice(0,16);
+
+if (caseId) loadMeetings();
+
+// ── Admin chat monitor ────────────────────────────────────────────────────────
+let adminLastId = 0;
+
+function renderAdminMsg(m) {
+  const colors = {client:'#e1effe',lawyer:'#def7ec',admin:'#fef9ec'};
+  return `<div style="padding:.5rem .75rem;border-radius:8px;background:${colors[m.sender]||'#f3f4f6'};font-size:.85rem;">
+    <span style="font-weight:600;font-size:.75rem;color:#64748b;">${m.sender_name||m.sender} ${m.is_pre?'(pre-case)':''}</span>
+    <div>${m.text||''}</div>
+    ${m.file?`<a href="${m.file}" target="_blank" style="font-size:.75rem;color:#b8973a;">📎 File</a>`:''}
+    <div style="font-size:.68rem;color:#94a3b8;text-align:right;">${new Date(m.timestamp).toLocaleString()}</div>
+  </div>`;
+}
+
+async function loadAdminChat() {
+  if (!caseId) return;
+  const res = await fetch(`/api/chat/${caseId}/monitor/?since=${adminLastId}`);
+  if (!res.ok) return;
+  const d = await res.json();
+  const box = document.getElementById('admin-chat-box');
+  if (d.messages.length && adminLastId === 0) box.innerHTML = '';
+  d.messages.forEach(m => {
+    adminLastId = Math.max(adminLastId, m.id);
+    box.insertAdjacentHTML('beforeend', renderAdminMsg(m));
+  });
+  if (d.messages.length) box.scrollTop = box.scrollHeight;
+}
+
+document.getElementById('admin-chat-form')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = document.getElementById('admin-msg-input').value.trim();
+  if (!text) return;
+  const fd = new FormData();
+  fd.append('sender', 'admin');
+  fd.append('case_id', caseId);
+  fd.append('text', text);
+  const res = await fetch('/api/chat/send/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCookie('csrftoken')},
+    body: fd
+  });
+  if (res.ok) {
+    document.getElementById('admin-msg-input').value = '';
+    await loadAdminChat();
+  }
+});
+
+if (caseId) {
+  loadAdminChat();
+  setInterval(loadAdminChat, 5000);
+}
+</script>
+{% endblock %}

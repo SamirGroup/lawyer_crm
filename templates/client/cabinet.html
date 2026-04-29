@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}LegalFlow — Cabinet #{{ req.pk }}{% endblock %}
+{% block content %}
+<div class="cabinet-wrap">
+
+  <div class="cab-sidebar">
+    <div class="cab-info-card">
+      <div class="cab-info-header">
+        <h3 data-i18n="cab_case"></h3>
+        <div class="case-id">#{{ req.pk }}</div>
+      </div>
+      <div class="cab-info-body">
+        <div class="cab-info-row">
+          <span class="label" data-i18n="cab_status"></span>
+          <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
+        </div>
+        {% if case %}
+        <div class="cab-info-row">
+          <span class="label" data-i18n="cab_case_status"></span>
+          <span class="badge badge-{{ case.status }}">{{ case.get_status_display }}</span>
+        </div>
+        {% endif %}
+        {% if invoice %}
+        <div class="cab-info-row">
+          <span class="label" data-i18n="cab_invoice"></span>
+          {% if invoice.paid %}
+            <span class="badge badge-paid">✅ {{ invoice.ten_percent_amount|floatformat:0 }} UZS</span>
+          {% else %}
+            <a href="/payment/{{ req.pk }}/" class="btn btn-gold btn-sm">Pay {{ invoice.ten_percent_amount|floatformat:0 }} UZS</a>
+          {% endif %}
+        </div>
+        {% elif req.total_amount %}
+        <div class="cab-info-row">
+          <span class="label">Payment</span>
+          <span style="font-size:.8rem;color:var(--muted);">Invoice pending</span>
+        </div>
+        {% endif %}
+        {% if req.file %}
+        <div class="cab-info-row">
+          <span class="label">Document</span>
+          <a href="{{ req.file.url }}" target="_blank" style="font-size:.8rem;color:var(--gold);">📎 Download</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if case and case.lawyer %}
+    <div class="lawyer-card">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;" data-i18n="cab_lawyer"></div>
+      <div class="lawyer-avatar">{{ case.lawyer.user.first_name|first|upper }}{{ case.lawyer.user.last_name|first|upper }}</div>
+      <div class="lawyer-name">{{ case.lawyer.user.get_full_name }}</div>
+      <div class="lawyer-dir">{{ case.lawyer.get_direction_display }}</div>
+      {% if case.lawyer.phone %}<div class="lawyer-phone">📞 {{ case.lawyer.phone }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if case %}
+    <div class="meetings-card">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;" data-i18n="cab_meetings"></div>
+      <div id="meetings-list"><div style="color:var(--muted);font-size:.85rem;" data-i18n="cab_no_meetings"></div></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="chat-card">
+    <div class="chat-header">
+      <div class="chat-header-icon">💬</div>
+      <div>
+        <h3 data-i18n="cab_chat"></h3>
+        {% if case and case.lawyer %}
+        <div class="chat-online">● {{ case.lawyer.user.get_full_name }}</div>
+        {% else %}
+        <div style="font-size:.75rem;color:var(--muted);">Waiting for lawyer assignment</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div id="messages" class="messages-box">
+      {% if not case %}
+      <div style="text-align:center;padding:3rem 1rem;">
+        <div style="font-size:2rem;margin-bottom:.75rem;">⏳</div>
+        <div style="font-weight:600;color:var(--navy);margin-bottom:.4rem;">Case under review</div>
+        <div style="font-size:.85rem;color:var(--muted);">You can write messages now. Your lawyer will see them once assigned.</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="chat-footer">
+      <form id="chat-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="sender" value="client">
+        <input type="hidden" name="token" value="{{ token }}">
+        {% if case %}<input type="hidden" name="case_id" value="{{ case.pk }}">{% endif %}
+        <div class="chat-input-row">
+          <input type="text" name="text" id="msg-input" data-i18n="cab_placeholder" data-i18n-attr="placeholder" autocomplete="off">
+          <input type="file" name="file" id="file-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none">
+          <button type="button" onclick="document.getElementById('file-input').click()" class="btn btn-icon">📎</button>
+          <button type="submit" class="btn btn-primary" data-i18n="cab_send"></button>
+        </div>
+        <div id="file-name" class="chat-file-name"></div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TOKEN = '{{ token }}';
+const CASE_ID = {{ case.pk|default:"null" }};
+const REQ_ID = {{ req.pk }};
+let lastId = 0;
+
+document.getElementById('file-input')?.addEventListener('change', e => {
+  document.getElementById('file-name').textContent = e.target.files[0]?.name || '';
+});
+
+function renderMessage(m) {
+  const div = document.createElement('div');
+  div.className = `message message-${m.sender}`;
+  div.innerHTML = `
+    <span class="msg-name">${escHtml(m.sender_name || m.sender)}</span>
+    <span class="msg-text">${m.text ? escHtml(m.text) : ''}</span>
+    ${m.file ? `<a href="${m.file}" target="_blank" class="msg-file">📎 File</a>` : ''}
+    <span class="msg-time">${new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`;
+  return div;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadMessages() {
+  let url;
+  if (CASE_ID) {
+    url = `/api/chat/${CASE_ID}/?since=${lastId}&token=${TOKEN}`;
+  } else {
+    url = `/api/chat/pre/?since=${lastId}&token=${TOKEN}`;
+  }
+  const res = await fetch(url);
+  if (!res.ok) return;
+  const d = await res.json();
+  const box = document.getElementById('messages');
+  if (d.messages.length && lastId === 0) {
+    const placeholder = box.querySelector('div[style*="text-align:center"]');
+    if (placeholder) placeholder.remove();
+  }
+  d.messages.forEach(m => {
+    if (!m.is_pre || !CASE_ID) {
+      lastId = Math.max(lastId, m.id);
+      box.appendChild(renderMessage(m));
+    }
+  });
+  if (d.messages.length) box.scrollTop = box.scrollHeight;
+}
+
+async function loadMeetings() {
+  if (!CASE_ID) return;
+  const res = await fetch(`/api/chat/${CASE_ID}/meetings/?token=${TOKEN}`);
+  if (!res.ok) return;
+  const d = await res.json();
+  const el = document.getElementById('meetings-list');
+  if (!d.meetings.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:.85rem;">${tr('cab_no_meetings')}</div>`;
+    return;
+  }
+  const statusCls = {confirmed:'meet-confirmed',pending:'meet-pending',cancelled:'meet-cancelled',done:'meet-done'};
+  const statusLabel = {
+    confirmed: tr('meet_confirmed'), pending: tr('meet_pending'),
+    cancelled: tr('meet_cancelled'), done: tr('meet_done')
+  };
+  el.innerHTML = d.meetings.map(m => {
+    const dt = new Date(m.scheduled_at);
+    return `<div class="meeting-item">
+      <div class="meeting-date-box">
+        <div class="meet-day">${dt.getDate()}</div>
+        <div class="meet-mon">${dt.toLocaleString('default',{month:'short'})}</div>
+      </div>
+      <div class="meeting-info">
+        <div class="meeting-title">${escHtml(m.title)}</div>
+        <div class="meeting-meta">
+          ${dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+          · ${m.duration_minutes} min
+          · ${m.meeting_type === 'online' ? tr('meet_online') : tr('meet_office')}
+        </div>
+        ${m.location ? `<div class="meeting-meta">📍 ${escHtml(m.location)}</div>` : ''}
+        ${m.notes ? `<div class="meeting-meta" style="font-style:italic;">${escHtml(m.notes)}</div>` : ''}
+      </div>
+      <div class="meeting-status ${statusCls[m.status]||''}">${statusLabel[m.status]||m.status}</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('chat-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const text = fd.get('text').trim();
+  const file = fd.get('file');
+  if (!text && (!file || !file.size)) return;
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const res = await fetch('/api/chat/send/', {method:'POST', body:fd});
+  btn.disabled = false;
+  if (res.ok) {
+    e.target.reset();
+    document.getElementById('file-name').textContent = '';
+    await loadMessages();
+  }
+});
+
+loadMessages();
+if (CASE_ID) {
+  loadMeetings();
+  setInterval(loadMeetings, 20000);
+}
+setInterval(loadMessages, 3000);
+</script>
+{% endblock %}

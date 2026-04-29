@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ method_label }} — Payment</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .gateway-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.1); width: 100%; max-width: 420px; overflow: hidden; }
+    .gateway-header { padding: 1.5rem; text-align: center; }
+    .gateway-header.payme { background: #00a2e8; }
+    .gateway-header.click  { background: #ff9900; }
+    .gateway-header h1 { color: #fff; font-size: 1.4rem; font-weight: 700; }
+    .gateway-header p  { color: rgba(255,255,255,.85); font-size: .85rem; margin-top: .25rem; }
+    .gateway-body { padding: 2rem; }
+    .amount-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; text-align: center; margin-bottom: 1.5rem; }
+    .amount-box .label { font-size: .8rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+    .amount-box .amount { font-size: 2rem; font-weight: 800; color: #1e293b; margin-top: .25rem; }
+    .amount-box .invoice { font-size: .8rem; color: #94a3b8; margin-top: .25rem; }
+    .demo-badge { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; padding: .5rem 1rem; font-size: .8rem; color: #92400e; text-align: center; margin-bottom: 1.25rem; }
+    .card-fields { margin-bottom: 1.25rem; }
+    .field { margin-bottom: .75rem; }
+    .field label { display: block; font-size: .8rem; font-weight: 500; color: #475569; margin-bottom: .3rem; }
+    .field input { width: 100%; padding: .6rem .75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: .95rem; background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .pay-btn { width: 100%; padding: .85rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; color: #fff; cursor: pointer; transition: opacity .2s; }
+    .pay-btn.payme { background: #00a2e8; }
+    .pay-btn.click  { background: #ff9900; }
+    .pay-btn:hover { opacity: .9; }
+    .cancel-link { display: block; text-align: center; margin-top: 1rem; font-size: .85rem; color: #94a3b8; text-decoration: none; }
+    .cancel-link:hover { color: #64748b; }
+  </style>
+</head>
+<body>
+<div class="gateway-card">
+  <div class="gateway-header {{ method }}">
+    <h1>{% if method == 'payme' %}💳 Payme{% else %}🟠 Click{% endif %}</h1>
+    <p>Secure Payment Gateway</p>
+  </div>
+  <div class="gateway-body">
+    <div class="amount-box">
+      <div class="label">Amount to pay</div>
+      <div class="amount">{{ inv.ten_percent_amount|floatformat:0 }} <small style="font-size:1rem;font-weight:400;">UZS</small></div>
+      <div class="invoice">Invoice: {{ inv.invoice_number }}</div>
+    </div>
+
+    <div class="demo-badge">
+      🧪 <strong>DEMO MODE</strong> — No real money will be charged
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="card-fields">
+        <div class="field">
+          <label>Card Number</label>
+          <input type="text" value="8600 0000 0000 0000" readonly>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Expiry</label><input type="text" value="12/26" readonly></div>
+          <div class="field"><label>CVV</label><input type="text" value="***" readonly></div>
+        </div>
+      </div>
+      <button type="submit" class="pay-btn {{ method }}">
+        ✅ Confirm Payment — {{ inv.ten_percent_amount|floatformat:0 }} UZS
+      </button>
+    </form>
+    <a href="/payment/{{ inv.request_id }}/" class="cancel-link">← Cancel and go back</a>
+  </div>
+</div>
+</body>
+</html>

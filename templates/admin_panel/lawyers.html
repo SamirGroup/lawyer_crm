@@ -1,0 +1,90 @@
+{% extends "admin_panel/base.html" %}
+{% block title %}Lawyers — LegalFlow Admin{% endblock %}
+{% block nav_law %}active{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;">
+  <h1>Lawyers</h1>
+  <button onclick="document.getElementById('add-modal').classList.remove('hidden')" class="btn btn-primary">+ Add Lawyer</button>
+</div>
+
+<table class="data-table">
+  <thead><tr><th>Name</th><th>Username</th><th>Direction</th><th>Phone</th><th>Active Cases</th><th></th></tr></thead>
+  <tbody>
+    {% for l in lawyers %}
+    <tr>
+      <td>{{ l.user.get_full_name }}</td>
+      <td>{{ l.user.username }}</td>
+      <td>{{ l.get_direction_display }}</td>
+      <td>{{ l.phone|default:"—" }}</td>
+      <td>{{ l.cases.count }}</td>
+      <td><button onclick="deleteLawyer({{ l.pk }})" class="btn btn-sm btn-danger">Delete</button></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="text-align:center;color:#999;">No lawyers yet</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div id="add-modal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Add Lawyer</h3>
+    <div id="modal-msg" class="alert hidden"></div>
+    <div class="form-group"><label>First Name</label><input type="text" id="fn"></div>
+    <div class="form-group"><label>Last Name</label><input type="text" id="ln"></div>
+    <div class="form-group"><label>Username</label><input type="text" id="uname"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="pwd"></div>
+    <div class="form-group"><label>Phone</label><input type="text" id="lphone"></div>
+    <div class="form-group">
+      <label>Direction</label>
+      <select id="ldir">
+        <option value="family">Family</option>
+        <option value="criminal">Criminal</option>
+        <option value="labor">Labor</option>
+        <option value="tax">Tax</option>
+        <option value="contract">Contract</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:1rem;">
+      <button onclick="addLawyer()" class="btn btn-primary">Add</button>
+      <button onclick="document.getElementById('add-modal').classList.add('hidden')" class="btn btn-secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function addLawyer() {
+  const res = await fetch('/admin-panel/lawyers/add/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+    body: JSON.stringify({
+      first_name: document.getElementById('fn').value,
+      last_name: document.getElementById('ln').value,
+      username: document.getElementById('uname').value,
+      password: document.getElementById('pwd').value,
+      phone: document.getElementById('lphone').value,
+      direction: document.getElementById('ldir').value,
+    })
+  });
+  const d = await res.json();
+  if (res.ok) { location.reload(); }
+  else {
+    const el = document.getElementById('modal-msg');
+    el.textContent = JSON.stringify(d);
+    el.className = 'alert alert-error';
+  }
+}
+
+async function deleteLawyer(id) {
+  if (!confirm('Delete this lawyer?')) return;
+  await fetch(`/admin-panel/lawyers/${id}/delete/`, {method: 'POST', headers: {'X-CSRFToken': getCookie('csrftoken')}});
+  location.reload();
+}
+
+function getCookie(name) {
+  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='))?.split('=')[1] || '';
+}
+</script>
+{% endblock %}

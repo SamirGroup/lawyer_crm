@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}LegalFlow — Payment{% endblock %}
+{% block content %}
+<div style="max-width:560px;margin:0 auto;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon">💳</div>
+      <div><h2 data-i18n="pay_title"></h2></div>
+    </div>
+
+    {% if demo_mode %}
+    <div class="alert alert-warning" style="margin-bottom:1.25rem;">
+      🧪 <strong>Demo Mode</strong> — <span data-i18n="pay_demo"></span>
+    </div>
+    {% endif %}
+
+    <table class="info-table" style="margin-bottom:1.25rem;">
+      <tr><td data-i18n="pay_req_id"></td><td><strong>#{{ req.pk }}</strong></td></tr>
+      {% if req.total_amount %}
+      <tr><td data-i18n="pay_total"></td><td><strong>{{ req.total_amount|floatformat:0 }} UZS</strong></td></tr>
+      {% endif %}
+      {% if invoice %}
+      <tr><td data-i18n="pay_invoice"></td><td><code>{{ invoice.invoice_number }}</code></td></tr>
+      <tr><td data-i18n="pay_amount"></td>
+        <td><strong style="font-size:1.1rem;color:var(--navy);">{{ invoice.ten_percent_amount|floatformat:0 }} UZS</strong></td></tr>
+      <tr><td data-i18n="pay_status"></td><td>
+        {% if invoice.paid %}
+          <span class="badge badge-paid" data-i18n="pay_paid"></span>
+        {% else %}
+          <span class="badge badge-reviewing" data-i18n="pay_pending"></span>
+        {% endif %}
+      </td></tr>
+      {% endif %}
+    </table>
+
+    {% if invoice and not invoice.paid %}
+      <p style="font-size:.875rem;font-weight:600;color:var(--navy);margin-bottom:.75rem;" data-i18n="pay_choose"></p>
+      <div class="payment-methods">
+        {% if demo_mode %}
+        <a href="/demo/pay/{{ invoice.pk }}/payme/" class="pay-method-card payme">
+          <div class="pay-logo">Payme</div>
+          <div class="pay-name">payme.uz</div>
+        </a>
+        <a href="/demo/pay/{{ invoice.pk }}/click/" class="pay-method-card click">
+          <div class="pay-logo">Click</div>
+          <div class="pay-name">click.uz</div>
+        </a>
+        {% else %}
+        <a href="#" onclick="payWith('payme')" class="pay-method-card payme">
+          <div class="pay-logo">Payme</div>
+          <div class="pay-name">payme.uz</div>
+        </a>
+        <a href="#" onclick="payWith('click')" class="pay-method-card click">
+          <div class="pay-logo">Click</div>
+          <div class="pay-name">click.uz</div>
+        </a>
+        {% endif %}
+      </div>
+    {% elif invoice and invoice.paid %}
+      <div class="alert alert-success" style="text-align:center;">
+        <strong data-i18n="pay_confirmed"></strong><br>
+        <a href="/cabinet/{{ req.pk }}/" class="btn btn-primary" style="margin-top:.75rem;" data-i18n="pay_open_cabinet"></a>
+      </div>
+    {% else %}
+      <div class="alert alert-info" data-i18n="pay_wait"></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not demo_mode %}
+<script>
+async function payWith(method) {
+  const res = await fetch('/api/invoice/{{ invoice.pk }}/');
+  const d = await res.json();
+  window.open(method === 'payme' ? d.payme_url : d.click_url, '_blank');
+}
+</script>
+{% endif %}
+{% endblock %}

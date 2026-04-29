@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}LegalFlow{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="/static/css/main.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="brand">
+      <div class="brand-icon">⚖</div>
+      <span class="brand-name">Legal<span>Flow</span></span>
+    </a>
+    <div class="nav-center">
+      <a href="/" data-i18n="nav_submit"></a>
+      <a href="/status/" data-i18n="nav_status"></a>
+    </div>
+    <div class="nav-right">
+      <div class="lang-switcher">
+        <button class="lang-btn" data-lang="uz" onclick="setLang('uz')">UZ</button>
+        <button class="lang-btn" data-lang="ru" onclick="setLang('ru')">RU</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      </div>
+      <a href="/accounts/login/" class="nav-login" data-i18n="nav_login"></a>
+    </div>
+  </nav>
+
+  <div class="demo-bar">
+    <strong>Demo:</strong>
+    <a href="/">New Request</a>
+    <a href="/status/?id=1">Status #1</a>
+    <a href="/payment/2/">Payment #2</a>
+    <a href="/cabinet/3/">Cabinet #3</a>
+    <a href="/admin-panel/">Admin</a>
+    <a href="/lawyer/">Lawyer</a>
+  </div>
+
+  {% block hero %}{% endblock %}
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/static/js/i18n.js"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

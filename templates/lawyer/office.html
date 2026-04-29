@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lawyer Office — LegalFlow</title>
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="admin-body">
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">⚖️ LegalFlow</div>
+    <p style="padding:0 1rem;color:#aaa;font-size:.85rem;">{{ lawyer.user.get_full_name }}</p>
+    <nav>
+      <a href="/lawyer/" class="active">📋 My Cases</a>
+      <a href="/accounts/logout/" class="nav-logout">🚪 Logout</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    <div class="admin-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h1>My Cases</h1>
+        <form method="get" style="display:flex;gap:.5rem;">
+          <select name="status" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in statuses %}<option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </form>
+      </div>
+
+      <table class="data-table">
+        <thead><tr><th>Case</th><th>Client</th><th>Phone</th><th>Direction</th><th>Status</th><th>Assigned</th><th></th></tr></thead>
+        <tbody>
+          {% for case in cases %}
+          <tr>
+            <td>#{{ case.pk }}</td>
+            <td>{{ case.request.customer_name }}</td>
+            <td>{{ case.request.phone }}</td>
+            <td>{{ case.request.direction|default:"—" }}</td>
+            <td><span class="badge badge-{{ case.status }}">{{ case.get_status_display }}</span></td>
+            <td>{{ case.attached_date|date:"d.m.Y" }}</td>
+            <td><a href="/lawyer/case/{{ case.pk }}/" class="btn btn-sm">Open</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;color:#999;">No cases assigned yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

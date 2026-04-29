@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}LegalFlow — Check Status{% endblock %}
+{% block content %}
+<div class="card" style="max-width:640px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-header-icon">🔍</div>
+    <div><h2 data-i18n="status_title"></h2></div>
+  </div>
+
+  <!-- If client has a saved request, show quick access -->
+  <div id="saved-requests" style="margin-bottom:1.25rem;display:none;">
+    <div style="font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Your Requests</div>
+    <div id="saved-list"></div>
+  </div>
+
+  <div style="display:flex;gap:.75rem;margin-bottom:1.5rem;">
+    <input type="number" id="req-id-input"
+      style="flex:1;padding:.7rem 1rem;border:1.5px solid var(--border);border-radius:var(--radius);font-size:.95rem;font-family:inherit;"
+      data-i18n="status_placeholder" data-i18n-attr="placeholder">
+    <button onclick="checkStatus()" class="btn btn-primary" data-i18n="status_btn"></button>
+  </div>
+
+  <div id="status-result" class="hidden"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const STATUS_ORDER = ['new','reviewing','offered','paid','assigned','closed'];
+const STATUS_ICONS = ['📥','🔍','💼','✅','👨‍⚖️','🏁'];
+
+// Show saved requests from localStorage
+function loadSavedRequests() {
+  const saved = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('lf_token_')) {
+      const id = key.replace('lf_token_', '');
+      const token = localStorage.getItem(key);
+      saved.push({id, token});
+    }
+  }
+  if (!saved.length) return;
+  const el = document.getElementById('saved-requests');
+  el.style.display = 'block';
+  document.getElementById('saved-list').innerHTML = saved.map(s =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;background:var(--bg);border-radius:var(--radius);margin-bottom:.4rem;">
+      <span style="font-size:.875rem;font-weight:600;">Request #${s.id}</span>
+      <div style="display:flex;gap:.5rem;">
+        <button onclick="document.getElementById('req-id-input').value='${s.id}';checkStatus()" class="btn btn-outline btn-sm">Check Status</button>
+        <a href="/cabinet/${s.token}/" class="btn btn-primary btn-sm">Open Cabinet</a>
+      </div>
+    </div>`
+  ).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSavedRequests();
+  const params = new URLSearchParams(location.search);
+  if (params.get('id')) {
+    document.getElementById('req-id-input').value = params.get('id');
+    checkStatus();
+  }
+});
+
+async function checkStatus() {
+  const id = document.getElementById('req-id-input').value.trim();
+  if (!id) return;
+  const el = document.getElementById('status-result');
+  el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--muted);">Loading...</div>';
+  el.classList.remove('hidden');
+
+  const res = await fetch('/api/application/' + id + '/');
+  if (!res.ok) {
+    el.innerHTML = `<div class="alert alert-error">${tr('status_not_found')}</div>`;
+    return;
+  }
+  const d = await res.json();
+  const statuses = tr('statuses');
+  const curIdx = STATUS_ORDER.indexOf(d.status);
+
+  const steps = STATUS_ORDER.map((s, i) => {
+    const cls = i < curIdx ? 'done' : i === curIdx ? 'active' : '';
+    return `<div class="status-step ${cls}">
+      <div class="step-dot">${i < curIdx ? '✓' : STATUS_ICONS[i]}</div>
+      <div class="step-label">${statuses[s] || s}</div>
+    </div>`;
+  }).join('');
+
+  let html = `
+    <div class="status-tracker">${steps}</div>
+    <div style="background:var(--bg);border-radius:var(--radius);padding:1.25rem;margin-top:1rem;">
+      <table class="info-table">
+        <tr><td>${tr('status_label')}</td><td><span class="badge badge-${d.status}">${statuses[d.status]||d.status}</span></td></tr>
+        ${d.direction ? `<tr><td>${tr('direction_label')}</td><td>${d.direction}</td></tr>` : ''}
+        ${d.total_amount ? `<tr><td>${tr('amount_label')}</td><td><strong>${Number(d.total_amount).toLocaleString()} UZS</strong></td></tr>` : ''}
+        ${d.invoice_number ? `<tr><td>${tr('invoice_label')}</td><td><code>${d.invoice_number}</code></td></tr>` : ''}
+      </table>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1rem;">`;
+
+  // Payment button — show when invoice exists and not paid
+  if (d.has_invoice && !d.paid) {
+    html += `<a href="/payment/${id}/" class="btn btn-gold" style="justify-content:center;">${tr('pay_btn')}</a>`;
+  }
+
+  // Cabinet button — always show if we have the token in localStorage
+  const savedToken = localStorage.getItem('lf_token_' + id);
+  if (savedToken) {
+    html += `<a href="/cabinet/${savedToken}/" class="btn btn-primary" style="justify-content:center;">${tr('cabinet_btn')}</a>`;
+  } else if (d.status === 'assigned' || d.status === 'closed' || d.status === 'paid') {
+    // Show cabinet URL from API (admin/staff can share this link)
+    html += `<a href="${d.cabinet_url}" class="btn btn-primary" style="justify-content:center;">${tr('cabinet_btn')}</a>`;
+  }
+
+  html += `</div>`;
+  el.innerHTML = html;
+}
+</script>
+{% endblock %}

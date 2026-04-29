@@ -1,0 +1,43 @@
+{% extends "admin_panel/base.html" %}
+{% block title %}Requests — LegalFlow Admin{% endblock %}
+{% block nav_req %}active{% endblock %}
+{% block content %}
+<h1>Requests</h1>
+
+<form method="get" class="filter-bar">
+  <input type="text" name="search" placeholder="Search name/phone" value="{{ request.GET.search }}">
+  <select name="status">
+    <option value="">All Statuses</option>
+    {% for val, label in statuses %}<option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="source">
+    <option value="">All Sources</option>
+    {% for val, label in sources %}<option value="{{ val }}" {% if request.GET.source == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <input type="date" name="date_from" value="{{ request.GET.date_from }}">
+  <input type="date" name="date_to" value="{{ request.GET.date_to }}">
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <a href="/admin-panel/requests/" class="btn btn-secondary">Reset</a>
+</form>
+
+<table class="data-table">
+  <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Direction</th><th>Source</th><th>Status</th><th>Amount</th><th>Date</th><th></th></tr></thead>
+  <tbody>
+    {% for r in requests %}
+    <tr>
+      <td>#{{ r.pk }}</td>
+      <td>{{ r.customer_name }}</td>
+      <td>{{ r.phone }}</td>
+      <td>{{ r.direction|default:"—" }}</td>
+      <td><span class="badge badge-{{ r.source }}">{{ r.source }}</span></td>
+      <td><span class="badge badge-{{ r.status }}">{{ r.get_status_display }}</span></td>
+      <td>{{ r.total_amount|default:"—" }}</td>
+      <td>{{ r.date|date:"d.m.Y H:i" }}</td>
+      <td><a href="/admin-panel/requests/{{ r.pk }}/" class="btn btn-sm">View</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" style="text-align:center;color:#999;">No requests found</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

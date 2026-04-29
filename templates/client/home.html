@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}LegalFlow — Professional Legal Assistance{% endblock %}
+
+{% block hero %}
+<section class="hero-section">
+  <div class="hero-badge">⚖ LegalFlow — Professional Legal Services</div>
+  <h1 data-i18n="hero_title"></h1>
+  <p data-i18n="hero_sub"></p>
+  <div class="hero-actions">
+    <a href="#request-form" class="btn btn-gold" data-i18n="hero_btn"></a>
+    <a href="/status/" class="btn btn-ghost" data-i18n="hero_btn2"></a>
+  </div>
+  <div class="hero-features" id="hero-features"></div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="card" id="request-form" style="max-width:640px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-header-icon">📋</div>
+    <div><h2 data-i18n="form_title"></h2></div>
+  </div>
+
+  <div id="form-msg" class="alert hidden"></div>
+
+  <form id="contact-form" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group">
+      <label data-i18n="form_name"></label>
+      <input type="text" name="customer_name" required data-i18n="form_name" data-i18n-attr="placeholder">
+    </div>
+    <div class="form-group">
+      <label data-i18n="form_phone"></label>
+      <input type="tel" name="phone" required placeholder="+998 XX XXX XX XX">
+    </div>
+    <div class="form-group">
+      <label data-i18n="form_text"></label>
+      <textarea name="text" rows="5" required data-i18n="form_text" data-i18n-attr="placeholder"></textarea>
+    </div>
+    <div class="form-group">
+      <label data-i18n="form_file"></label>
+      <label class="file-upload-label">
+        <span>📎</span>
+        <span id="file-label-text" data-i18n="form_file"></span>
+        <input type="file" name="file" id="file-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="submit-btn">
+      <span data-i18n="form_submit"></span>
+    </button>
+  </form>
+</div>
+
+<div id="success-card" class="card hidden" style="max-width:640px;margin:0 auto;">
+  <div class="success-card">
+    <div class="success-icon">✅</div>
+    <h2 data-i18n="success_title"></h2>
+    <p data-i18n="success_msg"></p>
+    <div class="req-id-display" id="req-id-display"></div>
+    <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.5rem;">
+      <a id="status-link" href="#" class="btn btn-outline" data-i18n="success_btn"></a>
+      <a id="cabinet-link" href="#" class="btn btn-primary">Open Cabinet</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Render hero features
+document.addEventListener('DOMContentLoaded', () => {
+  const feats = tr('features');
+  const icons = ['🔒','👨‍⚖️','⚡','💻'];
+  document.getElementById('hero-features').innerHTML = feats.map((f,i) =>
+    `<div class="hero-feature"><div class="hero-feature-icon">${icons[i]}</div><span>${f}</span></div>`
+  ).join('');
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  document.getElementById('file-label-text').textContent = e.target.files[0]?.name || tr('form_file');
+});
+
+document.getElementById('contact-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.querySelector('span').textContent = tr('form_submitting');
+  const msg = document.getElementById('form-msg');
+  msg.className = 'alert hidden';
+  try {
+    const res = await fetch('/api/application/create/', {method:'POST', body: new FormData(e.target)});
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('lf_token_' + data.id, data.token);
+      localStorage.setItem('lf_last_id', data.id);
+      document.getElementById('request-form').classList.add('hidden');
+      const sc = document.getElementById('success-card');
+      sc.classList.remove('hidden');
+      document.getElementById('req-id-display').textContent = tr('success_id') + ' #' + data.id;
+      document.getElementById('status-link').href = '/status/?id=' + data.id;
+      document.getElementById('cabinet-link').href = data.cabinet_url;
+    } else {
+      msg.textContent = data.error || 'Error';
+      msg.className = 'alert alert-error';
+      btn.disabled = false;
+      btn.querySelector('span').textContent = tr('form_submit');
+    }
+  } catch {
+    msg.textContent = 'Network error. Please try again.';
+    msg.className = 'alert alert-error';
+    btn.disabled = false;
+    btn.querySelector('span').textContent = tr('form_submit');
+  }
+});
+</script>
+{% endblock %}

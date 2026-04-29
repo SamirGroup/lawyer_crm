@@ -1,0 +1,34 @@
+{% extends "admin_panel/base.html" %}
+{% block title %}Dashboard — LegalFlow Admin{% endblock %}
+{% block nav_dash %}active{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="stats-grid">
+  <div class="stat-card"><span class="stat-num">{{ stats.total }}</span><span class="stat-label">Total Requests</span></div>
+  <div class="stat-card stat-new"><span class="stat-num">{{ stats.new }}</span><span class="stat-label">New</span></div>
+  <div class="stat-card stat-paid"><span class="stat-num">{{ stats.paid }}</span><span class="stat-label">Paid</span></div>
+  <div class="stat-card stat-assigned"><span class="stat-num">{{ stats.assigned }}</span><span class="stat-label">Assigned</span></div>
+  <div class="stat-card stat-closed"><span class="stat-num">{{ stats.closed }}</span><span class="stat-label">Closed</span></div>
+  <div class="stat-card"><span class="stat-num">{{ stats.lawyers }}</span><span class="stat-label">Lawyers</span></div>
+</div>
+
+<h2 style="margin-top:2rem;">Recent Requests</h2>
+<table class="data-table">
+  <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Source</th><th>Status</th><th>Date</th><th></th></tr></thead>
+  <tbody>
+    {% for r in recent %}
+    <tr>
+      <td>#{{ r.pk }}</td>
+      <td>{{ r.customer_name }}</td>
+      <td>{{ r.phone }}</td>
+      <td><span class="badge badge-{{ r.source }}">{{ r.source }}</span></td>
+      <td><span class="badge badge-{{ r.status }}">{{ r.get_status_display }}</span></td>
+      <td>{{ r.date|date:"d.m.Y H:i" }}</td>
+      <td><a href="/admin-panel/requests/{{ r.pk }}/" class="btn btn-sm">View</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" style="text-align:center;color:#999;">No requests yet</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
