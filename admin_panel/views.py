@@ -1,5 +1,8 @@
 import json
+from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.validators import DecimalValidator, MinValueValidator
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
@@ -88,7 +91,16 @@ def update_request(request, pk):
         req.direction = data['direction']
     if 'total_amount' in data:
         val = data['total_amount']
-        req.total_amount = val if val not in (None, '', 'null') else None
+        if val in (None, '', 'null'):
+            req.total_amount = None
+        else:
+            try:
+                amount = Decimal(str(val))
+                DecimalValidator(12, 2)(amount)
+                MinValueValidator(0)(amount)
+            except (InvalidOperation, ValidationError):
+                return JsonResponse({'error': 'Invalid total_amount: must be a positive number with up to 10 integer digits and 2 decimal places'}, status=400)
+            req.total_amount = amount
     if 'admin_comment' in data:
         req.admin_comment = data['admin_comment']
     if 'status' in data:

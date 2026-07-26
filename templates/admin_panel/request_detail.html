@@ -134,7 +134,7 @@
       </div>
       <div class="form-group">
         <label>Total Amount (UZS)</label>
-        <input type="number" id="total-amount" value="{{ req.total_amount|default:'' }}" placeholder="e.g. 500000">
+        <input type="number" id="total-amount" value="{{ req.total_amount|default:'' }}" placeholder="e.g. 500000" min="0" max="9999999999.99" step="0.01">
       </div>
       <div class="form-group">
         <label>Admin Comment</label>
@@ -193,7 +193,12 @@ async function saveRequest() {
       admin_comment: document.getElementById('admin-comment').value,
     })
   });
-  showMsg(res.ok ? '✅ Saved' : '❌ Error', res.ok);
+  if (res.ok) {
+    showMsg('✅ Saved', true);
+  } else {
+    const data = await res.json().catch(() => ({}));
+    showMsg('❌ ' + (data.error || 'Error'), false);
+  }
 }
 
 async function changeStatus() {
